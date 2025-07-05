@@ -2,6 +2,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import { Client, GatewayIntentBits, Partials, ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, Events } from "discord.js";
+import cors from "cors";
 
 const app = express();
 app.use(express.json());
@@ -29,6 +30,11 @@ app.get("/", (req, res) => {
   res.send("Bot is online! " + new Date().toISOString());
 });
 
+app.use(cors({
+  origin: "https://apply-bridgify.infy.uk",  // your frontend URL
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
+}));
 
 /** === Discord Client Setup === **/
 const client = new Client({
