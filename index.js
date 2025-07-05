@@ -22,8 +22,8 @@ const DISCORD_CLIENT_SECRET = "RHtml2zr0gMn3xDnvEs3l_kzCWP3OyQL";
 const BOT_TOKEN = "MTM5MTEzNDMwMzcxODQ3Nzk0NA.Gx24SG.MYzFuvJ6-HgtAX-x9plc2as0_KOqMYv5UPX7I8";
 const REDIRECT_URI = "https://apply-bridgify.infy.uk/callback.html";
 
-const STAFF_GUILD_ID = "1380214993018163260"; 
-const STAFF_CHANNEL_ID = "1387525782888382516"; 
+const STAFF_GUILD_ID = "1380214993018163260";
+const STAFF_CHANNEL_ID = "1387525782888382516";
 
 const APPROVE_ROLES_GUILD_ID = "1389985754666631198";
 
@@ -54,6 +54,7 @@ client.once(Events.ClientReady, async () => {
     const rolesGuild = await client.guilds.fetch(APPROVE_ROLES_GUILD_ID);
     const roles = await rolesGuild.roles.fetch();
 
+    // Filter roles you want to assign on approval (exclude @everyone)
     APPROVE_ROLE_IDS_DYNAMIC = roles
       .filter(role => role.id !== rolesGuild.id)
       .map(role => role.id);
@@ -132,12 +133,17 @@ app.post("/apply", async (req, res) => {
       .setColor("#5865F2")
       .addFields(
         { name: "Applicant", value: `<@${user_id}> (${username})`, inline: true },
-        { name: "User ID", value: user_id, inline: true },
-        { name: "Why join?", value: answers.q1 || "N/A" },
-        { name: "Experience", value: answers.q2 || "N/A" },
-        { name: "Time Dedication", value: answers.q3 || "N/A" },
+        { name: "User ID", value: user_id, inline: true }
       )
       .setTimestamp();
+
+    // Dynamically add all questions and answers (max 25 fields per embed)
+    const entries = Object.entries(answers);
+    entries.forEach(([key, value], index) => {
+      if (index < 23) { // reserve space for applicant info fields
+        embed.addFields({ name: `Q${index + 1}`, value: value || "N/A" });
+      }
+    });
 
     const approveBtn = new ButtonBuilder()
       .setCustomId(`approve_${user_id}`)
