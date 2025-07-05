@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>Redirecting...</title></head>
+<body>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  if (code) {
+    // Redirect to main page with code in URL params
+    window.location.href = `index.html?code=${code}`;
+  } else {
+    window.location.href = "index.html";
+  }
+</script>
+</body>
+</html>
