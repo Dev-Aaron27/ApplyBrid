@@ -11,7 +11,7 @@ app.use(express.json());
 const DISCORD_CLIENT_ID = "1391134303718477944";
 const DISCORD_CLIENT_SECRET = "RHtml2zr0gMn3xDnvEs3l_kzCWP3OyQL";
 const BOT_TOKEN = "MTM5MTEzNDMwMzcxODQ3Nzk0NA.Gx24SG.MYzFuvJ6-HgtAX-x9plc2as0_KOqMYv5UPX7I8";
-const REDIRECT_URI = "https://applybrid.onrender.com/callback.html"; // Same as frontend redirect URI
+const REDIRECT_URI = "https://apply-bridgify.infy.uk/callback.html"; // Same as frontend redirect URI
 
 const STAFF_GUILD_ID = "1389985754666631198"; // Bridgif server ID
 const STAFF_CHANNEL_ID = "1387525782888382516"; // Staff applications channel
