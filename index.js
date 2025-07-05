@@ -1,5 +1,6 @@
 // backend.js
 import express from "express";
+const app = express();
 import fetch from "node-fetch";
 import { Client, GatewayIntentBits, Partials, ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, Events } from "discord.js";
 
@@ -24,6 +25,11 @@ const APPROVE_ROLE_IDS = [
 // Data stores (replace with DB or persistent storage for production)
 const blockedUsers = new Map(); // userId => blockUntil timestamp
 const applications = new Map(); // userId => { username, answers, accessToken, timestamp }
+
+app.get("/", (req, res) => {
+  res.send("Bot is online! " + new Date().toISOString());
+});
+
 
 /** === Discord Client Setup === **/
 const client = new Client({
