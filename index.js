@@ -7,13 +7,13 @@ const app = express();
 app.use(express.json());
 
 /** === CONFIG === **/
-const DISCORD_CLIENT_ID = "YOUR_DISCORD_CLIENT_ID";
-const DISCORD_CLIENT_SECRET = "YOUR_DISCORD_CLIENT_SECRET";
-const BOT_TOKEN = "YOUR_BOT_TOKEN";
+const DISCORD_CLIENT_ID = "1391134303718477944";
+const DISCORD_CLIENT_SECRET = "RHtml2zr0gMn3xDnvEs3l_kzCWP3OyQL";
+const BOT_TOKEN = "MTM5MTEzNDMwMzcxODQ3Nzk0NA.Gx24SG.MYzFuvJ6-HgtAX-x9plc2as0_KOqMYv5UPX7I8";
 const REDIRECT_URI = "https://yourdomain.com/callback.html"; // Same as frontend redirect URI
 
-const STAFF_GUILD_ID = "YOUR_SERVER_ID"; // Bridgif server ID
-const STAFF_CHANNEL_ID = "YOUR_STAFF_CHANNEL_ID"; // Staff applications channel
+const STAFF_GUILD_ID = "1389985754666631198"; // Bridgif server ID
+const STAFF_CHANNEL_ID = "1387525782888382516"; // Staff applications channel
 
 const APPROVE_ROLE_IDS = [
   "1390712301950075011",
