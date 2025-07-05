@@ -22,10 +22,17 @@ const DISCORD_CLIENT_SECRET = "RHtml2zr0gMn3xDnvEs3l_kzCWP3OyQL";
 const BOT_TOKEN = "MTM5MTEzNDMwMzcxODQ3Nzk0NA.Gx24SG.MYzFuvJ6-HgtAX-x9plc2as0_KOqMYv5UPX7I8";
 const REDIRECT_URI = "https://apply-bridgify.infy.uk/callback.html";
 
-const STAFF_GUILD_ID = "1380214993018163260";  // Staff app tracking guild
+const STAFF_GUILD_ID = "1380214993018163260"; 
 const STAFF_CHANNEL_ID = "1387525782888382516"; 
 
-const APPROVE_ROLES_GUILD_ID = "1389985754666631198";  // Main server where roles exist
+const MAIN_GUILD_ID = "1389985754666631198"; // Your main guild for role assignment
+
+// The exact roles you want to assign on approval in main guild:
+const STAFF_APPROVE_ROLE_IDS = [
+  '1390712301950075011',
+  '1390712312444489820',
+  '1390712297101594636'
+];
 
 const blockedUsers = new Map();
 const applications = new Map();
@@ -45,23 +52,8 @@ const client = new Client({
   partials: [Partials.Channel]
 });
 
-let APPROVE_ROLE_IDS_DYNAMIC = [];
-
-client.once(Events.ClientReady, async () => {
+client.once(Events.ClientReady, () => {
   console.log(`Bot logged in as ${client.user.tag}`);
-
-  try {
-    const rolesGuild = await client.guilds.fetch(APPROVE_ROLES_GUILD_ID);
-    const roles = await rolesGuild.roles.fetch();
-
-    APPROVE_ROLE_IDS_DYNAMIC = roles
-      .filter(role => role.id !== rolesGuild.id)
-      .map(role => role.id);
-
-    console.log("Loaded approve roles from main guild:", APPROVE_ROLE_IDS_DYNAMIC);
-  } catch (err) {
-    console.error("Failed to load roles from main guild:", err);
-  }
 });
 
 app.post("/oauth2/token", async (req, res) => {
@@ -127,25 +119,17 @@ app.post("/apply", async (req, res) => {
     const staffChannel = await client.channels.fetch(STAFF_CHANNEL_ID);
     if (!staffChannel) return res.status(500).json({ message: "Staff channel not found" });
 
-    // Prepare fields with all questions and answers
-    const fields = [];
-    for (const [key, answer] of Object.entries(answers)) {
-      // Format question number for display
-      const questionNum = key.replace(/\D/g, ''); // extract digits
-      fields.push({
-        name: `Q${questionNum}`,
-        value: answer || "N/A",
-        inline: false
-      });
-    }
-
+    // Show all questions + answers in the embed:
     const embed = new EmbedBuilder()
       .setTitle("New Staff Application")
       .setColor("#5865F2")
       .addFields(
         { name: "Applicant", value: `<@${user_id}> (${username})`, inline: true },
         { name: "User ID", value: user_id, inline: true },
-        ...fields
+        ...Object.entries(answers).map(([key, val]) => ({
+          name: `Question ${key.replace('q', '')}`,
+          value: val || "N/A"
+        }))
       )
       .setTimestamp();
 
@@ -176,6 +160,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const [action, userId] = interaction.customId.split("_");
   if (!["approve", "deny"].includes(action)) return;
 
+  const guild = await client.guilds.fetch(STAFF_GUILD_ID);
+  if (!guild) {
+    const embed = new EmbedBuilder()
+      .setColor("#f04747")
+      .setDescription("❌ Guild not found.");
+    return interaction.reply({ embeds: [embed], ephemeral: true });
+  }
+
   try {
     if (action === "approve") {
       const appData = applications.get(userId);
@@ -186,26 +178,43 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // Fetch main guild for adding member and roles
-      const mainGuild = await client.guilds.fetch(APPROVE_ROLES_GUILD_ID);
+      // Add member to STAFF_GUILD_ID using OAuth token (if needed)
+      await guild.members.add(userId, { accessToken: appData.access_token });
 
-      // Add member to main guild
-      await mainGuild.members.add(userId, { accessToken: appData.access_token });
-
-      // Fetch member from main guild
-      const member = await mainGuild.members.fetch(userId);
+      const member = await guild.members.fetch(userId);
       if (!member) {
         const embed = new EmbedBuilder()
           .setColor("#f04747")
-          .setDescription("❌ User not found in main guild after adding.");
+          .setDescription("❌ User not found in staff guild after adding.");
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // Add approval roles to member in main guild
-      await member.roles.add(APPROVE_ROLE_IDS_DYNAMIC);
+      // Assign the staff roles in the STAFF_GUILD_ID (if you want)
+      // await member.roles.add(APPROVE_ROLE_IDS_DYNAMIC); 
+      // (commented out because you want main guild roles)
+
+      // Now assign roles in main guild (1389985754666631198)
+      const mainGuild = await client.guilds.fetch(MAIN_GUILD_ID);
+      if (!mainGuild) {
+        const embed = new EmbedBuilder()
+          .setColor("#f04747")
+          .setDescription("❌ Main guild not found.");
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+
+      const mainMember = await mainGuild.members.fetch(userId);
+      if (!mainMember) {
+        const embed = new EmbedBuilder()
+          .setColor("#f04747")
+          .setDescription("❌ User not found in main guild.");
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+
+      // Assign only the 3 staff roles here:
+      await mainMember.roles.add(STAFF_APPROVE_ROLE_IDS);
 
       try {
-        await member.send({
+        await mainMember.send({
           embeds: [new EmbedBuilder()
             .setColor("#43b581")
             .setTitle("Application Approved")
