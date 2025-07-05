@@ -1,6 +1,5 @@
 // backend.js
 import express from "express";
-const app = express();
 import fetch from "node-fetch";
 import { Client, GatewayIntentBits, Partials, ButtonBuilder, ButtonStyle, ActionRowBuilder, EmbedBuilder, Events } from "discord.js";
 
