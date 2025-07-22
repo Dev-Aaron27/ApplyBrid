@@ -17,9 +17,9 @@ const app = express();
 app.use(express.json());
 
 /** === CONFIG === **/
-const DISCORD_CLIENT_ID = "1391134303718477944";
-const DISCORD_CLIENT_SECRET = "RHtml2zr0gMn3xDnvEs3l_kzCWP3OyQL";
-const BOT_TOKEN = "MTM5MTEzNDMwMzcxODQ3Nzk0NA.Gx24SG.MYzFuvJ6-HgtAX-x9plc2as0_KOqMYv5UPX7I8";
+const DISCORD_CLIENT_ID = "NA";
+const DISCORD_CLIENT_SECRET = "NA";
+const BOT_TOKEN = "NA";
 const REDIRECT_URI = "https://apply-bridgify.infy.uk/callback.html";
 
 const STAFF_GUILD_ID = "1380214993018163260"; 
