@@ -267,4 +267,4 @@ app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
 
-client.login(BOT_TOKEN);
+client.login(process.env.DISCORD_TOKEN);
