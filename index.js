@@ -17,9 +17,9 @@ const app = express();
 app.use(express.json());
 
 /** === CONFIG === **/
-const DISCORD_CLIENT_ID = "NA";
-const DISCORD_CLIENT_SECRET = "NA";
-const BOT_TOKEN = "NA";
+const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
+const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const REDIRECT_URI = "https://apply-bridgify.infy.uk/callback.html";
 
 const STAFF_GUILD_ID = "1380214993018163260"; 
