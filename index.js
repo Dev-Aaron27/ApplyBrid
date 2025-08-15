@@ -155,7 +155,7 @@ app.post("/apply", async (req, res) => {
 
     // Create embed
     const embed = new EmbedBuilder()
-      .setTitle("📋 New Staff Application")
+      .setTitle("📋 New Staff Application - If 12Q = Mod. If 15Q = Admin")
       .setColor("#5865F2")
       .setThumbnail(
         discordUser?.displayAvatarURL({ size: 1024, dynamic: true }) || null
@@ -170,7 +170,6 @@ app.post("/apply", async (req, res) => {
             : "N/A",
           inline: true
         },
-        { name: "🏅 Badges", value: badges, inline: false }
       )
       .setTimestamp();
 
@@ -189,15 +188,6 @@ app.post("/apply", async (req, res) => {
           )}:R>`,
           inline: true
         },
-        {
-          name: "🏷 Roles",
-          value:
-            guildMember.roles.cache
-              .filter(r => r.id !== MAIN_GUILD_ID)
-              .map(r => r.toString())
-              .join(", ") || "None",
-          inline: false
-        }
       );
     }
 
