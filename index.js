@@ -43,10 +43,12 @@ app.get("/", (req, res) => {
   res.send("Bot is online! " + new Date().toISOString());
 });
 
+// ✅ Fixed CORS to allow Authorization header
 app.use(cors({
   origin: "https://apply-bridgify.infy.uk",
   methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
+  allowedHeaders: ["Content-Type", "Authorization"], // <-- Added Authorization
+  credentials: true
 }));
 
 const client = new Client({
@@ -121,7 +123,6 @@ app.post("/apply", async (req, res) => {
     const staffChannel = await client.channels.fetch(STAFF_CHANNEL_ID);
     if (!staffChannel) return res.status(500).json({ message: "Staff channel not found" });
 
-    // Show all questions + answers in the embed:
     const embed = new EmbedBuilder()
       .setTitle("New Staff Application")
       .setColor("#5865F2")
@@ -180,7 +181,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // Add member to STAFF_GUILD_ID using OAuth token (if needed)
       await guild.members.add(userId, { accessToken: appData.access_token });
 
       const member = await guild.members.fetch(userId);
@@ -191,11 +191,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // Assign the staff roles in the STAFF_GUILD_ID (if you want)
-      // await member.roles.add(APPROVE_ROLE_IDS_DYNAMIC); 
-      // (commented out because you want main guild roles)
-
-      // Now assign roles in main guild (1389985754666631198)
       const mainGuild = await client.guilds.fetch(MAIN_GUILD_ID);
       if (!mainGuild) {
         const embed = new EmbedBuilder()
@@ -212,7 +207,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // Assign only the 3 staff roles here:
       await mainMember.roles.add(STAFF_APPROVE_ROLE_IDS);
 
       try {
