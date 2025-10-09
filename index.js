@@ -44,7 +44,7 @@ app.get("/", (req, res) => {
 
 app.use(
   cors({
-    origin: "https://apply-bridgify.infy.uk",
+    origin: "https://apply-Adfinityy.infy.uk",
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
@@ -269,7 +269,7 @@ client.on(Events.InteractionCreate, async interaction => {
             new EmbedBuilder()
               .setColor("#43b581")
               .setTitle("Application Approved")
-              .setDescription("🎉 Congratulations! Your staff application for Bridgif has been **approved**.")
+              .setDescription("🎉 Congratulations! Your staff application for Adfinity has been **approved**.")
           ]
         });
       } catch {}
