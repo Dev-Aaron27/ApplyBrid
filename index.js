@@ -23,7 +23,7 @@ app.use(express.json());
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID;
 const DISCORD_CLIENT_SECRET = process.env.DISCORD_CLIENT_SECRET;
 const BOT_TOKEN = process.env.DISCORD_TOKEN;
-const REDIRECT_URI = "https://apply-bridgify.infy.uk/callback.html";
+const REDIRECT_URI = "https://apply-bridgify.infy.uk";
 
 const STAFF_GUILD_ID = "1408900811538563085";
 const STAFF_CHANNEL_ID = "1418912016005074984";
@@ -44,7 +44,7 @@ app.get("/", (req, res) => {
 
 app.use(
   cors({
-    origin: "https://apply-Adfinityy.infy.uk",
+    origin: "https://apply-bridgify.infy.uk",
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
