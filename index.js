@@ -49,6 +49,11 @@ app.use(
   })
 );
 
+/** === Root endpoint for uptime monitoring === **/
+app.get("/", (req, res) => {
+  res.send("Bot is online! " + new Date().toISOString());
+});
+
 /** === DISCORD CLIENT === **/
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
@@ -62,9 +67,7 @@ client.once(Events.ClientReady, () => {
 /** === OAuth2 Token Exchange === **/
 app.post("/oauth2/token", async (req, res) => {
   const { code, redirect_uri } = req.body;
-  if (!code || !redirect_uri) {
-    return res.status(400).json({ message: "Missing code or redirect_uri" });
-  }
+  if (!code || !redirect_uri) return res.status(400).json({ message: "Missing code or redirect_uri" });
 
   try {
     const params = new URLSearchParams();
@@ -93,8 +96,7 @@ app.post("/oauth2/token", async (req, res) => {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
 
-    if (!userRes.ok)
-      return res.status(400).json({ message: "Failed to get user info" });
+    if (!userRes.ok) return res.status(400).json({ message: "Failed to get user info" });
 
     const user = await userRes.json();
 
@@ -112,30 +114,17 @@ app.post("/oauth2/token", async (req, res) => {
 /** === Apply Route === **/
 app.post("/apply", async (req, res) => {
   const { user_id, username, answers, access_token } = req.body;
-  if (!user_id || !username || !answers) {
-    return res.status(400).json({ message: "Missing application data" });
-  }
+  if (!user_id || !username || !answers) return res.status(400).json({ message: "Missing application data" });
 
   const blockedUntil = blockedUsers.get(user_id);
-  if (blockedUntil && blockedUntil > Date.now()) {
-    return res
-      .status(403)
-      .json({ message: "You are blocked from applying for 30 days." });
-  } else if (blockedUntil && blockedUntil <= Date.now()) {
-    blockedUsers.delete(user_id);
-  }
+  if (blockedUntil && blockedUntil > Date.now()) return res.status(403).json({ message: "You are blocked from applying for 30 days." });
+  else if (blockedUntil && blockedUntil <= Date.now()) blockedUsers.delete(user_id);
 
-  applications.set(user_id, {
-    username,
-    answers,
-    access_token,
-    timestamp: Date.now()
-  });
+  applications.set(user_id, { username, answers, access_token, timestamp: Date.now() });
 
   try {
     const staffChannel = await client.channels.fetch(STAFF_CHANNEL_ID);
-    if (!staffChannel)
-      return res.status(500).json({ message: "Staff channel not found" });
+    if (!staffChannel) return res.status(500).json({ message: "Staff channel not found" });
 
     const discordUser = await client.users.fetch(user_id, { force: true }).catch(() => null);
 
@@ -152,13 +141,7 @@ app.post("/apply", async (req, res) => {
       .addFields(
         { name: "🆔 User ID", value: user_id, inline: true },
         { name: "👤 Username", value: `${discordUser?.tag || username}`, inline: true },
-        {
-          name: "📅 Account Created",
-          value: discordUser
-            ? `<t:${Math.floor(discordUser.createdTimestamp / 1000)}:R>`
-            : "N/A",
-          inline: true
-        }
+        { name: "📅 Account Created", value: discordUser ? `<t:${Math.floor(discordUser.createdTimestamp / 1000)}:R>` : "N/A", inline: true }
       )
       .setTimestamp();
 
@@ -173,17 +156,14 @@ app.post("/apply", async (req, res) => {
     const normalAnswers = {};
     const theoryAnswers = {};
     for (const [qKey, value] of Object.entries(answers)) {
-      if (qKey.startsWith("t")) theoryAnswers[qKey] = value; 
+      if (qKey.startsWith("t")) theoryAnswers[qKey] = value;
       else normalAnswers[qKey] = value;
     }
 
     // === Normal Answers Embed ===
     embed.addFields({ name: "📝 Application Answers", value: "\u200B" });
     for (const [qKey, answer] of Object.entries(normalAnswers)) {
-      embed.addFields({
-        name: `Q${qKey.replace("q", "")}`,
-        value: answer?.trim() || "N/A"
-      });
+      embed.addFields({ name: `Q${qKey.replace("q", "")}`, value: answer?.trim() || "N/A" });
     }
 
     // === THEORY ASSESSMENT ===
@@ -192,7 +172,6 @@ app.post("/apply", async (req, res) => {
       .setColor("#00bfff")
       .setTimestamp();
 
-    // Correct answers mapping (A/B/C style)
     const correctTheoryAnswers = {
       t1: "B",
       t2: "A",
@@ -201,7 +180,7 @@ app.post("/apply", async (req, res) => {
       t5: "B"
     };
 
-    // Map user words to letters
+    // Map common word answers to A/B/C
     const answerMap = {
       "ban": "B",
       "ignore": "C",
@@ -209,17 +188,16 @@ app.post("/apply", async (req, res) => {
       "explain": "B",
       "de-escalate": "B",
       "timeout": "A",
-      "watch": "C"
+      "watch": "C",
+      "mute": "A"
     };
 
     for (const [key, userAnswer] of Object.entries(theoryAnswers)) {
-      const normalizedKey = key.toLowerCase();
-      const correct = correctTheoryAnswers[normalizedKey] || "N/A";
-      const userMapped = answerMap[(userAnswer || "").toLowerCase().trim()] || (userAnswer || "").toUpperCase();
-      const isCorrect = userMapped.toUpperCase() === correct.toUpperCase();
-
+      const correct = correctTheoryAnswers[key];
+      const mappedAnswer = answerMap[(userAnswer || "").toLowerCase().trim()] || (userAnswer || "N/A");
+      const isCorrect = mappedAnswer.toUpperCase() === correct.toUpperCase();
       theoryEmbed.addFields({
-        name: `Q${normalizedKey.replace("t", "")}`,
+        name: `Q${key.replace("t", "")}`,
         value: `**Your Answer:** ${userAnswer || "N/A"}\n**Correct Answer:** ${correct}\n**Result:** ${isCorrect ? "✅ Correct" : "❌ Incorrect"}`
       });
     }
@@ -231,6 +209,7 @@ app.post("/apply", async (req, res) => {
 
     await staffChannel.send({ embeds: [embed, theoryEmbed], components: [row] });
     res.status(200).json({ message: "Application sent to staff." });
+
   } catch (err) {
     console.error("Failed to send application message:", err);
     res.status(500).json({ message: "Failed to send application message." });
@@ -245,21 +224,11 @@ client.on(Events.InteractionCreate, async interaction => {
   if (!["approve", "deny"].includes(action)) return;
 
   const guild = await client.guilds.fetch(STAFF_GUILD_ID);
-  if (!guild) {
-    return interaction.reply({
-      embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Guild not found.")],
-      ephemeral: true
-    });
-  }
+  if (!guild) return interaction.reply({ embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Guild not found.")], ephemeral: true });
 
   try {
     const appData = applications.get(userId);
-    if (!appData) {
-      return interaction.reply({
-        embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Application data not found.")],
-        ephemeral: true
-      });
-    }
+    if (!appData) return interaction.reply({ embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Application data not found.")], ephemeral: true });
 
     if (action === "approve") {
       await guild.members.add(userId, { accessToken: appData.access_token });
@@ -268,16 +237,11 @@ client.on(Events.InteractionCreate, async interaction => {
       await mainMember.roles.add(STAFF_APPROVE_ROLE_IDS);
 
       try {
-        await mainMember.send({
-          embeds: [new EmbedBuilder().setColor("#43b581").setTitle("Application Approved").setDescription("🎉 Congratulations! Your staff application for Adfinity has been **approved**.")]
-        });
+        await mainMember.send({ embeds: [new EmbedBuilder().setColor("#43b581").setTitle("Application Approved").setDescription("🎉 Congratulations! Your staff application for Adfinity has been **approved**.")] });
       } catch {}
 
       applications.delete(userId);
-      await interaction.update({
-        embeds: [new EmbedBuilder().setColor("#43b581").setDescription(`✅ Application APPROVED for <@${userId}>`)],
-        components: []
-      });
+      await interaction.update({ embeds: [new EmbedBuilder().setColor("#43b581").setDescription(`✅ Application APPROVED for <@${userId}>`)], components: [] });
     }
 
     if (action === "deny") {
@@ -285,23 +249,15 @@ client.on(Events.InteractionCreate, async interaction => {
 
       try {
         const user = await client.users.fetch(userId);
-        await user.send({
-          embeds: [new EmbedBuilder().setColor("#f04747").setTitle("Application Denied").setDescription("❌ You are blocked from applying again for 30 days.")]
-        });
+        await user.send({ embeds: [new EmbedBuilder().setColor("#f04747").setTitle("Application Denied").setDescription("❌ You are blocked from applying again for 30 days.")] });
       } catch {}
 
       applications.delete(userId);
-      await interaction.update({
-        embeds: [new EmbedBuilder().setColor("#f04747").setDescription(`❌ Application DENIED for <@${userId}>`)],
-        components: []
-      });
+      await interaction.update({ embeds: [new EmbedBuilder().setColor("#f04747").setDescription(`❌ Application DENIED for <@${userId}>`)], components: [] });
     }
   } catch (err) {
     console.error(err);
-    interaction.reply({
-      embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Failed to process action.")],
-      ephemeral: true
-    });
+    interaction.reply({ embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Failed to process action.")], ephemeral: true });
   }
 });
 
