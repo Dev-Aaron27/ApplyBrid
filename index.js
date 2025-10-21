@@ -201,11 +201,25 @@ app.post("/apply", async (req, res) => {
       t5: "B"
     };
 
+    // Map user words to letters
+    const answerMap = {
+      "ban": "B",
+      "ignore": "C",
+      "alert": "B",
+      "explain": "B",
+      "de-escalate": "B",
+      "timeout": "A",
+      "watch": "C"
+    };
+
     for (const [key, userAnswer] of Object.entries(theoryAnswers)) {
-      const correct = correctTheoryAnswers[key] || "N/A";
-      const isCorrect = (userAnswer || "").toUpperCase().trim() === correct.toUpperCase().trim();
+      const normalizedKey = key.toLowerCase();
+      const correct = correctTheoryAnswers[normalizedKey] || "N/A";
+      const userMapped = answerMap[(userAnswer || "").toLowerCase().trim()] || (userAnswer || "").toUpperCase();
+      const isCorrect = userMapped.toUpperCase() === correct.toUpperCase();
+
       theoryEmbed.addFields({
-        name: `Q${key.replace("t", "")}`,
+        name: `Q${normalizedKey.replace("t", "")}`,
         value: `**Your Answer:** ${userAnswer || "N/A"}\n**Correct Answer:** ${correct}\n**Result:** ${isCorrect ? "✅ Correct" : "❌ Incorrect"}`
       });
     }
