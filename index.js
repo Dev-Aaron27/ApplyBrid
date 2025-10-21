@@ -134,17 +134,14 @@ app.post("/apply", async (req, res) => {
     if (!staffChannel)
       return res.status(500).json({ message: "Staff channel not found" });
 
-    // Fetch Discord user
     const discordUser = await client.users.fetch(user_id, { force: true }).catch(() => null);
 
-    // Fetch guild member info if they are in the main guild
     let guildMember = null;
     try {
       const guild = await client.guilds.fetch(MAIN_GUILD_ID);
       guildMember = await guild.members.fetch(user_id);
     } catch {}
 
-    // User badges
     let badges = "None";
     if (discordUser?.flags) {
       badges = discordUser.flags
@@ -153,9 +150,8 @@ app.post("/apply", async (req, res) => {
         .join(", ") || "None";
     }
 
-    // Create embed
     const embed = new EmbedBuilder()
-      .setTitle("📋 New Staff Application - If 12Q = Mod. If 15Q = Admin")
+      .setTitle("📋 New Staff Application")
       .setColor("#5865F2")
       .setThumbnail(
         discordUser?.displayAvatarURL({ size: 1024, dynamic: true }) || null
@@ -169,11 +165,10 @@ app.post("/apply", async (req, res) => {
             ? `<t:${Math.floor(discordUser.createdTimestamp / 1000)}:R>`
             : "N/A",
           inline: true
-        },
+        }
       )
       .setTimestamp();
 
-    // Guild info
     if (guildMember) {
       embed.addFields(
         {
@@ -187,16 +182,63 @@ app.post("/apply", async (req, res) => {
             guildMember.joinedTimestamp / 1000
           )}:R>`,
           inline: true
-        },
+        }
       );
     }
 
-    // Application answers
+    // === Separate answers ===
+    const normalAnswers = {};
+    const theoryAnswers = {};
+    for (const [qKey, value] of Object.entries(answers)) {
+      if (qKey.startsWith("t")) theoryAnswers[qKey] = value;
+      else normalAnswers[qKey] = value;
+    }
+
+    // === NORMAL ANSWERS ===
     embed.addFields({ name: "📝 Application Answers", value: "\u200B" });
-    for (const [qKey, answer] of Object.entries(answers)) {
+    for (const [qKey, answer] of Object.entries(normalAnswers)) {
       embed.addFields({
         name: `Q${qKey.replace("q", "")}`,
         value: answer?.trim() || "N/A"
+      });
+    }
+
+    // === THEORY EMBED ===
+    const theoryEmbed = new EmbedBuilder()
+      .setTitle("📘 Moderator Theory Test")
+      .setColor("#00bfff")
+      .setTimestamp();
+
+    const correctAnswers = {
+      t1: "Ban the bot and report the server",
+      t2: "Mute and warn",
+      t3: "Report it to management",
+      t4: "Delete the message and warn them",
+      t5: "Ask a senior staff",
+      t6: "Deny and report it",
+      t7: "Report it to Devs4you Tech Team",
+      t8: "Report it privately",
+      t9: "Warn them",
+      t10: "Ignore it",
+      t11: "Keep banning and report",
+      t12: "Inform the owner immediately",
+      t13: "Correct them politely",
+      t14: "Warn them",
+      t15: "Report and block"
+    };
+
+    for (const [key, userAnswer] of Object.entries(theoryAnswers)) {
+      const question = userAnswer?.question || "N/A";
+      const answer = userAnswer?.answer || "N/A";
+      const correct = correctAnswers[key] || "N/A";
+      const isCorrect =
+        answer.toLowerCase().trim() === correct.toLowerCase().trim();
+
+      theoryEmbed.addFields({
+        name: `Q${key.replace("t", "")}`,
+        value: `**Question:** ${question}\n**User Answer:** ${answer}\n**Correct Answer:** ${correct}\n**Result:** ${
+          isCorrect ? "✅ Correct" : "❌ Incorrect"
+        }`
       });
     }
 
@@ -213,14 +255,12 @@ app.post("/apply", async (req, res) => {
 
     const row = new ActionRowBuilder().addComponents(approveBtn, denyBtn);
 
-    await staffChannel.send({ embeds: [embed], components: [row] });
+    await staffChannel.send({ embeds: [embed, theoryEmbed], components: [row] });
 
     res.status(200).json({ message: "Application sent to staff." });
   } catch (err) {
     console.error("Failed to send application message:", err);
-    res
-      .status(500)
-      .json({ message: "Failed to send application message." });
+    res.status(500).json({ message: "Failed to send application message." });
   }
 });
 
