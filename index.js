@@ -14,6 +14,7 @@ import {
   UserFlags
 } from "discord.js";
 import cors from "cors";
+
 dotenv.config();
 
 const app = express();
@@ -38,10 +39,7 @@ const STAFF_APPROVE_ROLE_IDS = [
 const blockedUsers = new Map();
 const applications = new Map();
 
-app.get("/", (req, res) => {
-  res.send("Bot is online! " + new Date().toISOString());
-});
-
+/** === CORS === **/
 app.use(
   cors({
     origin: "https://jobs.adfinity.uk",
@@ -51,6 +49,7 @@ app.use(
   })
 );
 
+/** === DISCORD CLIENT === **/
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
   partials: [Partials.Channel]
@@ -60,7 +59,7 @@ client.once(Events.ClientReady, () => {
   console.log(`Bot logged in as ${client.user.tag}`);
 });
 
-/** OAuth Token Exchange **/
+/** === OAuth2 Token Exchange === **/
 app.post("/oauth2/token", async (req, res) => {
   const { code, redirect_uri } = req.body;
   if (!code || !redirect_uri) {
@@ -81,18 +80,22 @@ app.post("/oauth2/token", async (req, res) => {
       body: params,
       headers: { "Content-Type": "application/x-www-form-urlencoded" }
     });
+
     if (!tokenRes.ok) {
       const text = await tokenRes.text();
       console.error("Token exchange failed:", text);
       return res.status(400).json({ message: "Token exchange failed" });
     }
+
     const tokenData = await tokenRes.json();
 
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
+
     if (!userRes.ok)
       return res.status(400).json({ message: "Failed to get user info" });
+
     const user = await userRes.json();
 
     res.json({
@@ -106,7 +109,7 @@ app.post("/oauth2/token", async (req, res) => {
   }
 });
 
-/** Apply Route **/
+/** === Apply Route === **/
 app.post("/apply", async (req, res) => {
   const { user_id, username, answers, access_token } = req.body;
   if (!user_id || !username || !answers) {
@@ -142,20 +145,10 @@ app.post("/apply", async (req, res) => {
       guildMember = await guild.members.fetch(user_id);
     } catch {}
 
-    let badges = "None";
-    if (discordUser?.flags) {
-      badges = discordUser.flags
-        .toArray()
-        .map(flag => UserFlags[flag])
-        .join(", ") || "None";
-    }
-
     const embed = new EmbedBuilder()
       .setTitle("📋 New Staff Application")
       .setColor("#5865F2")
-      .setThumbnail(
-        discordUser?.displayAvatarURL({ size: 1024, dynamic: true }) || null
-      )
+      .setThumbnail(discordUser?.displayAvatarURL({ size: 1024, dynamic: true }) || null)
       .addFields(
         { name: "🆔 User ID", value: user_id, inline: true },
         { name: "👤 Username", value: `${discordUser?.tag || username}`, inline: true },
@@ -171,30 +164,20 @@ app.post("/apply", async (req, res) => {
 
     if (guildMember) {
       embed.addFields(
-        {
-          name: "🏠 Guild Nickname",
-          value: guildMember.nickname || "None",
-          inline: true
-        },
-        {
-          name: "📅 Joined Server",
-          value: `<t:${Math.floor(
-            guildMember.joinedTimestamp / 1000
-          )}:R>`,
-          inline: true
-        }
+        { name: "🏠 Guild Nickname", value: guildMember.nickname || "None", inline: true },
+        { name: "📅 Joined Server", value: `<t:${Math.floor(guildMember.joinedTimestamp / 1000)}:R>`, inline: true }
       );
     }
 
-    // === Separate answers ===
+    // === Split normal vs theory answers ===
     const normalAnswers = {};
     const theoryAnswers = {};
     for (const [qKey, value] of Object.entries(answers)) {
-      if (qKey.startsWith("t")) theoryAnswers[qKey] = value;
+      if (qKey.startsWith("t")) theoryAnswers[qKey] = value; 
       else normalAnswers[qKey] = value;
     }
 
-    // === NORMAL ANSWERS ===
+    // === Normal Answers Embed ===
     embed.addFields({ name: "📝 Application Answers", value: "\u200B" });
     for (const [qKey, answer] of Object.entries(normalAnswers)) {
       embed.addFields({
@@ -203,60 +186,36 @@ app.post("/apply", async (req, res) => {
       });
     }
 
-    // === THEORY EMBED ===
+    // === THEORY ASSESSMENT ===
     const theoryEmbed = new EmbedBuilder()
       .setTitle("📘 Moderator Theory Test")
       .setColor("#00bfff")
       .setTimestamp();
 
-    const correctAnswers = {
-      t1: "Ban the bot and report the server",
-      t2: "Mute and warn",
-      t3: "Report it to management",
-      t4: "Delete the message and warn them",
-      t5: "Ask a senior staff",
-      t6: "Deny and report it",
-      t7: "Report it to Devs4you Tech Team",
-      t8: "Report it privately",
-      t9: "Warn them",
-      t10: "Ignore it",
-      t11: "Keep banning and report",
-      t12: "Inform the owner immediately",
-      t13: "Correct them politely",
-      t14: "Warn them",
-      t15: "Report and block"
+    // Correct answers mapping (A/B/C style)
+    const correctTheoryAnswers = {
+      t1: "B",
+      t2: "A",
+      t3: "B",
+      t4: "B",
+      t5: "B"
     };
 
     for (const [key, userAnswer] of Object.entries(theoryAnswers)) {
-      const question = userAnswer?.question || "N/A";
-      const answer = userAnswer?.answer || "N/A";
-      const correct = correctAnswers[key] || "N/A";
-      const isCorrect =
-        answer.toLowerCase().trim() === correct.toLowerCase().trim();
-
+      const correct = correctTheoryAnswers[key] || "N/A";
+      const isCorrect = (userAnswer || "").toUpperCase().trim() === correct.toUpperCase().trim();
       theoryEmbed.addFields({
         name: `Q${key.replace("t", "")}`,
-        value: `**Question:** ${question}\n**User Answer:** ${answer}\n**Correct Answer:** ${correct}\n**Result:** ${
-          isCorrect ? "✅ Correct" : "❌ Incorrect"
-        }`
+        value: `**Your Answer:** ${userAnswer || "N/A"}\n**Correct Answer:** ${correct}\n**Result:** ${isCorrect ? "✅ Correct" : "❌ Incorrect"}`
       });
     }
 
     // Buttons
-    const approveBtn = new ButtonBuilder()
-      .setCustomId(`approve_${user_id}`)
-      .setLabel("✅ APPROVE")
-      .setStyle(ButtonStyle.Success);
-
-    const denyBtn = new ButtonBuilder()
-      .setCustomId(`deny_${user_id}`)
-      .setLabel("❌ DENY")
-      .setStyle(ButtonStyle.Danger);
-
+    const approveBtn = new ButtonBuilder().setCustomId(`approve_${user_id}`).setLabel("✅ APPROVE").setStyle(ButtonStyle.Success);
+    const denyBtn = new ButtonBuilder().setCustomId(`deny_${user_id}`).setLabel("❌ DENY").setStyle(ButtonStyle.Danger);
     const row = new ActionRowBuilder().addComponents(approveBtn, denyBtn);
 
     await staffChannel.send({ embeds: [embed, theoryEmbed], components: [row] });
-
     res.status(200).json({ message: "Application sent to staff." });
   } catch (err) {
     console.error("Failed to send application message:", err);
@@ -264,7 +223,7 @@ app.post("/apply", async (req, res) => {
   }
 });
 
-/** Interaction Handler **/
+/** === Interaction Handler === **/
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
 
@@ -280,37 +239,23 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 
   try {
+    const appData = applications.get(userId);
+    if (!appData) {
+      return interaction.reply({
+        embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Application data not found.")],
+        ephemeral: true
+      });
+    }
+
     if (action === "approve") {
-      const appData = applications.get(userId);
-      if (!appData) {
-        return interaction.reply({
-          embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ Application data not found.")],
-          ephemeral: true
-        });
-      }
-
       await guild.members.add(userId, { accessToken: appData.access_token });
-
-      const member = await guild.members.fetch(userId).catch(() => null);
-      if (!member) {
-        return interaction.reply({
-          embeds: [new EmbedBuilder().setColor("#f04747").setDescription("❌ User not found in staff guild after adding.")],
-          ephemeral: true
-        });
-      }
-
       const mainGuild = await client.guilds.fetch(MAIN_GUILD_ID);
       const mainMember = await mainGuild.members.fetch(userId);
       await mainMember.roles.add(STAFF_APPROVE_ROLE_IDS);
 
       try {
         await mainMember.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#43b581")
-              .setTitle("Application Approved")
-              .setDescription("🎉 Congratulations! Your staff application for Adfinity has been **approved**.")
-          ]
+          embeds: [new EmbedBuilder().setColor("#43b581").setTitle("Application Approved").setDescription("🎉 Congratulations! Your staff application for Adfinity has been **approved**.")]
         });
       } catch {}
 
@@ -327,12 +272,7 @@ client.on(Events.InteractionCreate, async interaction => {
       try {
         const user = await client.users.fetch(userId);
         await user.send({
-          embeds: [
-            new EmbedBuilder()
-              .setColor("#f04747")
-              .setTitle("Application Denied")
-              .setDescription("❌ You are blocked from applying again for 30 days.")
-          ]
+          embeds: [new EmbedBuilder().setColor("#f04747").setTitle("Application Denied").setDescription("❌ You are blocked from applying again for 30 days.")]
         });
       } catch {}
 
@@ -352,8 +292,5 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
-});
-
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
 client.login(BOT_TOKEN);
