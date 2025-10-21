@@ -181,13 +181,13 @@ app.post("/apply", async (req, res) => {
       .setTitle("📘 Moderator Theory Test")
       .setColor("#00bfff")
       .setTimestamp();
-
+    
     const correctTheoryAnswers = {
-      t1: "B",
-      t2: "A",
-      t3: "B",
-      t4: "B",
-      t5: "B"
+      theory1: "B",
+      theory2: "A",
+      theory3: "B",
+      theory4: "B",
+      theory5: "B"
     };
 
     const answerMap = {
