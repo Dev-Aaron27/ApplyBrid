@@ -114,26 +114,36 @@ app.post("/oauth2/token", async (req, res) => {
 /** === Apply Route === **/
 app.post("/apply", async (req, res) => {
   const { user_id, username, answers, access_token } = req.body;
-  if (!user_id || !username || !answers) return res.status(400).json({ message: "Missing application data" });
+  if (!user_id || !username || !answers) 
+    return res.status(400).json({ message: "Missing application data" });
 
+  // Check if user is blocked
   const blockedUntil = blockedUsers.get(user_id);
-  if (blockedUntil && blockedUntil > Date.now()) return res.status(403).json({ message: "You are blocked from applying for 30 days." });
-  else if (blockedUntil && blockedUntil <= Date.now()) blockedUsers.delete(user_id);
+  if (blockedUntil && blockedUntil > Date.now()) 
+    return res.status(403).json({ message: "You are blocked from applying for 30 days." });
+  else if (blockedUntil && blockedUntil <= Date.now()) 
+    blockedUsers.delete(user_id);
 
+  // Save application temporarily
   applications.set(user_id, { username, answers, access_token, timestamp: Date.now() });
 
   try {
+    // Fetch staff channel
     const staffChannel = await client.channels.fetch(STAFF_CHANNEL_ID);
-    if (!staffChannel) return res.status(500).json({ message: "Staff channel not found" });
+    if (!staffChannel) 
+      return res.status(500).json({ message: "Staff channel not found" });
 
+    // Fetch Discord user
     const discordUser = await client.users.fetch(user_id, { force: true }).catch(() => null);
 
+    // Fetch guild member (optional)
     let guildMember = null;
     try {
       const guild = await client.guilds.fetch(MAIN_GUILD_ID);
       guildMember = await guild.members.fetch(user_id);
     } catch {}
 
+    // === Main application embed ===
     const embed = new EmbedBuilder()
       .setTitle("📋 New Staff Application")
       .setColor("#5865F2")
@@ -160,7 +170,7 @@ app.post("/apply", async (req, res) => {
       else normalAnswers[qKey] = value;
     }
 
-    // === Normal Answers Embed ===
+    // === Normal answers embed fields ===
     embed.addFields({ name: "📝 Application Answers", value: "\u200B" });
     for (const [qKey, answer] of Object.entries(normalAnswers)) {
       embed.addFields({ name: `Q${qKey.replace("q", "")}`, value: answer?.trim() || "N/A" });
@@ -180,7 +190,6 @@ app.post("/apply", async (req, res) => {
       t5: "B"
     };
 
-    // Map common word answers to A/B/C
     const answerMap = {
       "ban": "B",
       "ignore": "C",
@@ -194,20 +203,36 @@ app.post("/apply", async (req, res) => {
 
     for (const [key, userAnswer] of Object.entries(theoryAnswers)) {
       const correct = correctTheoryAnswers[key];
+      if (!correct) {
+        console.warn(`No correct answer defined for question ${key}`);
+        continue; // skip unknown questions
+      }
+
       const mappedAnswer = answerMap[(userAnswer || "").toLowerCase().trim()] || (userAnswer || "N/A");
       const isCorrect = mappedAnswer.toUpperCase() === correct.toUpperCase();
+
       theoryEmbed.addFields({
         name: `Q${key.replace("t", "")}`,
         value: `**Your Answer:** ${userAnswer || "N/A"}\n**Correct Answer:** ${correct}\n**Result:** ${isCorrect ? "✅ Correct" : "❌ Incorrect"}`
       });
     }
 
-    // Buttons
-    const approveBtn = new ButtonBuilder().setCustomId(`approve_${user_id}`).setLabel("✅ APPROVE").setStyle(ButtonStyle.Success);
-    const denyBtn = new ButtonBuilder().setCustomId(`deny_${user_id}`).setLabel("❌ DENY").setStyle(ButtonStyle.Danger);
+    // === Buttons ===
+    const approveBtn = new ButtonBuilder()
+      .setCustomId(`approve_${user_id}`)
+      .setLabel("✅ APPROVE")
+      .setStyle(ButtonStyle.Success);
+
+    const denyBtn = new ButtonBuilder()
+      .setCustomId(`deny_${user_id}`)
+      .setLabel("❌ DENY")
+      .setStyle(ButtonStyle.Danger);
+
     const row = new ActionRowBuilder().addComponents(approveBtn, denyBtn);
 
+    // Send to staff channel
     await staffChannel.send({ embeds: [embed, theoryEmbed], components: [row] });
+
     res.status(200).json({ message: "Application sent to staff." });
 
   } catch (err) {
